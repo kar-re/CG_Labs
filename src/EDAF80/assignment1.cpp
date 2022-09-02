@@ -14,12 +14,6 @@
 #include <clocale>
 #include <cstdlib>
 
-struct CelestialBodyRef
-{
-	CelestialBody *body;
-	glm::mat4 parent_transform;
-};
-
 int main()
 {
 	std::setlocale(LC_ALL, "");
@@ -162,8 +156,6 @@ int main()
 	GLuint const uranus_texture = bonobo::loadTexture2D(config::resources_path("planets/2k_uranus.jpg"));
 	GLuint const neptune_texture = bonobo::loadTexture2D(config::resources_path("planets/2k_neptune.jpg"));
 
-	std::stack<CelestialBodyRef> celestial_bodies;
-
 	//
 	// Set up the celestial bodies.
 	//
@@ -176,8 +168,6 @@ int main()
 	earth.set_spin(earth_spin);
 	earth.set_orbit({-2.5f, glm::radians(45.0f), glm::two_pi<float>() / 10.0f});
 	earth.add_child(&moon);
-
-	celestial_body_ref.push(earth);
 
 	//
 	// Define the colour and depth used for clearing.
@@ -245,18 +235,41 @@ int main()
 		//
 		// Traverse the scene graph and render all nodes
 		//
+
+		// TODO: Replace this explicit rendering of the Earth and Moon
+		// with a traversal of the scene graph and rendering of all its
+		// nodes.
+		// auto const parent = earth.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 0.0f)), show_basis);
+
+		// moon.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), parent, show_basis);
 		struct CelestialBodyRef
 		{
 			CelestialBody *body;
 			glm::mat4 parent_transform;
 		};
-		// TODO: Replace this explicit rendering of the Earth and Moon
-		// with a traversal of the scene graph and rendering of all its
-		// nodes.
-		auto const parent = earth.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 0.0f)), show_basis);
+		std::stack<CelestialBodyRef> celestial_bodies;
 
-		moon.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), parent, show_basis);
+		CelestialBodyRef earth_ref;
+		earth_ref.body = &earth;
+		earth_ref.parent_transform = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 0.0f));
+		celestial_bodies.push(earth_ref);
 
+		while (!celestial_bodies.empty())
+		{
+			CelestialBodyRef &body_ref = celestial_bodies.top();
+			celestial_bodies.pop();
+			glm::mat4 transform = body_ref.body->render(animation_delta_time_us, camera.GetWorldToClipMatrix(), body_ref.parent_transform, show_basis);
+
+			std::vector<CelestialBody *> const &children = body_ref.body->get_children();
+
+			for (const auto &child : children)
+			{
+				CelestialBodyRef child_ref;
+				child_ref.body = child;
+				child_ref.parent_transform = transform;
+				celestial_bodies.push(child_ref);
+			}
+		}
 		//
 		// Add controls to the scene.
 		//

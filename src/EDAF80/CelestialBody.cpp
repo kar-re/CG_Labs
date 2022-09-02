@@ -63,6 +63,13 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	world = parent_transform * rotation_matrix_tilt * rotation_matrix_orbit * translation_matrix * rotation_matrix_2_self;
 	glm::mat4 planet_goes_brrr = world * rotation_matrix_1_self * scale_matrix;
 	_body.node.render(view_projection, planet_goes_brrr);
+	if (_ring.is_set)
+	{
+		glm::vec3 local_scale = glm::vec3(_ring.scale.x, 1.0f, _ring.scale.y);
+		glm::mat4 local_rotation = glm::rotate(glm::mat4(1.0f), glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f));
+		glm::mat4 projection_matrix = glm::scale(glm::mat4(1.0f), local_scale);
+		_ring.node.render(view_projection, world * projection_matrix * local_rotation);
+	}
 
 	if (show_basis)
 	{
@@ -101,7 +108,6 @@ void CelestialBody::set_spin(SpinConfiguration const &configuration)
 	_body.spin.speed = configuration.speed;
 	_body.spin.rotation_angle = 0.0f;
 }
-
 void CelestialBody::set_ring(bonobo::mesh_data const &shape,
 														 GLuint const *program,
 														 GLuint diffuse_texture_id,

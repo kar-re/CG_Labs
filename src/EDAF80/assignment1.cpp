@@ -256,6 +256,9 @@ int main()
 		ImGuiIO const &io = ImGui::GetIO();
 		input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
 		input_handler.Advance();
+
+		// Lerping on previous positions. Choose a reference, sample positions in an vector. Lerp between, which gives smooth transition and smooth camera movement.
+		// Can be swapped as well, even if we have a stack.
 		camera.Update(delta_time_us, input_handler);
 
 		if (input_handler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)

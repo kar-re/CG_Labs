@@ -8,6 +8,7 @@
 #include "core/ShaderProgramManager.hpp"
 
 #include <imgui.h>
+#include <math.h>
 
 #include <clocale>
 #include <cstdlib>
@@ -185,6 +186,7 @@ int main()
 	bool show_gui = true;
 	bool show_basis = false;
 	float time_scale = 1.0f;
+	
 
 	while (!glfwWindowShouldClose(window)) {
 		//
@@ -194,6 +196,7 @@ int main()
 		auto const delta_time_us = std::chrono::duration_cast<std::chrono::microseconds>(now_time - last_time);
 		auto const animation_delta_time_us = !pause_animation ? std::chrono::duration_cast<std::chrono::microseconds>(delta_time_us * time_scale) : 0us;
 		last_time = now_time;
+
 
 
 		//
@@ -250,8 +253,8 @@ int main()
 		// with a traversal of the scene graph and rendering of all its
 		// nodes.
 		earth.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 0.0f)), show_basis);
-		//moon.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), glm::mat4(1.0f), show_basis);
-
+		
+		// moon.render(animation_delta_time_us, camera.GetWorldToClipMatrix(), glm::mat4(1.0f), show_basis);
 
 		//
 		// Add controls to the scene.

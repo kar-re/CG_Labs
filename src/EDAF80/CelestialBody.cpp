@@ -38,10 +38,10 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	_body.spin.rotation_angle += -glm::half_pi<float>() / 2.0f * elapsed_time_s;
 
 	glm::mat4 world = parent_transform;
-	glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0), _body.scale);
+	glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0), _body.scale);
 
-	glm::mat4 rotation_matrix_1 = glm::rotate(glm::mat4(1.0), _body.spin.rotation_angle, glm::vec3(0.0, 1.0, 0.0));
-	glm::mat4 rotation_matrix_2 = glm::rotate(rotation_matrix_1, _body.spin.axial_tilt, glm::vec3(0.0, 0.0, 1.0));
+	glm::mat4 rotation_matrix_1_self = glm::rotate(glm::mat4(1.0), _body.spin.rotation_angle, glm::vec3(0.0, -1.0, 0.0));
+	glm::mat4 rotation_matrix_2_self = glm::rotate(glm::mat4(1.0), _body.spin.axial_tilt, glm::vec3(0.0, 0.0, 1.0));
 
 	if (show_basis)
 	{
@@ -54,9 +54,16 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// manage all the local transforms ourselves, so the internal transform
 	// of the node is just the identity matrix and we can forward the whole
 	// world matrix.
-
+	_body.orbit.rotation_angle += -glm::half_pi<float>() / 2.0f * elapsed_time_s;
+	glm::mat4 rotation_matrix_orbit = glm::rotate(glm::mat4(1.0), _body.orbit.rotation_angle, glm::vec3(0.0, 1.0, 0.0));
+	glm::mat4 rotation_matrix_tilt = glm::rotate(glm::mat4(1.0), _body.orbit.inclination, glm::vec3(0.0, 0.0, 1.0));
+	glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0), glm::vec3(_body.orbit.radius, 0, 0));
 	// First rotation then scale, even though it feels like it should be backwards
-	_body.node.render(view_projection, rotation_matrix_2 * scaleMatrix);
+
+	// _body.node.render(view_projection, glm::translate(glm::mat4(1.0), glm::vec3(3, 0, 0)) * rotation_matrix_2 * scaleMatrix);
+	// _body.node.render(view_projection, rotation_matrix * translation_matrix);
+	// _body.node.render(view_projection, world * rotation_matrix_orbit * translation_matrix * rotation_matrix_2_self);
+	_body.node.render(view_projection, world * rotation_matrix_tilt * rotation_matrix_orbit * translation_matrix * rotation_matrix_2_self * rotation_matrix_1_self * scale_matrix);
 
 	return parent_transform;
 }

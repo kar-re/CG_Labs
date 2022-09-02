@@ -31,22 +31,19 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// 										sin(_body.scale.y + (elapsed_time_s)),
 	// 										1.0));
 
-	set_scale(glm::vec3(1.0, 0.2, 0.2));
 	// LogInfo("X: (%f) Y: (%f) Z:(%f)", _body.scale.x, _body.scale.y, _body.scale.z);
 	// LogInfo("(%f)", elapsed_time_s);
 
-	_body.spin.rotation_angle += -glm::half_pi<float>() / 2.0f * elapsed_time_s;
+	// _body.spin.rotation_angle += -glm::half_pi<float>() / 2.0f * elapsed_time_s;
+
+	_body.spin.rotation_angle += _body.spin.speed * elapsed_time_s;
+	// LogInfo("Spin: (%f)", _body.spin.rotation_angle);
 
 	glm::mat4 world = parent_transform;
-	glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0), _body.scale);
+	glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0f), _body.scale);
 
-	glm::mat4 rotation_matrix_1_self = glm::rotate(glm::mat4(1.0), _body.spin.rotation_angle, glm::vec3(0.0, -1.0, 0.0));
-	glm::mat4 rotation_matrix_2_self = glm::rotate(glm::mat4(1.0), _body.spin.axial_tilt, glm::vec3(0.0, 0.0, 1.0));
-
-	if (show_basis)
-	{
-		bonobo::renderBasis(1.0f, 2.0f, view_projection, world);
-	}
+	glm::mat4 rotation_matrix_1_self = glm::rotate(glm::mat4(1.0f), _body.spin.rotation_angle, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 rotation_matrix_2_self = glm::rotate(glm::mat4(1.0f), _body.spin.axial_tilt, glm::vec3(0.0f, 0.0f, 1.0f));
 
 	// Note: The second argument of `node::render()` is supposed to be the
 	// parent transform of the node, not the whole world matrix, as the
@@ -54,18 +51,25 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// manage all the local transforms ourselves, so the internal transform
 	// of the node is just the identity matrix and we can forward the whole
 	// world matrix.
-	_body.orbit.rotation_angle += -glm::half_pi<float>() / 2.0f * elapsed_time_s;
-	glm::mat4 rotation_matrix_orbit = glm::rotate(glm::mat4(1.0), _body.orbit.rotation_angle, glm::vec3(0.0, 1.0, 0.0));
-	glm::mat4 rotation_matrix_tilt = glm::rotate(glm::mat4(1.0), _body.orbit.inclination, glm::vec3(0.0, 0.0, 1.0));
-	glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0), glm::vec3(_body.orbit.radius, 0, 0));
+	_body.orbit.rotation_angle += _body.orbit.speed * elapsed_time_s;
+	glm::mat4 rotation_matrix_orbit = glm::rotate(glm::mat4(1.0f), _body.orbit.rotation_angle, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 rotation_matrix_tilt = glm::rotate(glm::mat4(1.0f), _body.orbit.inclination, glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(_body.orbit.radius, 0.0f, 0.0f));
 	// First rotation then scale, even though it feels like it should be backwards
 
 	// _body.node.render(view_projection, glm::translate(glm::mat4(1.0), glm::vec3(3, 0, 0)) * rotation_matrix_2 * scaleMatrix);
 	// _body.node.render(view_projection, rotation_matrix * translation_matrix);
 	// _body.node.render(view_projection, world * rotation_matrix_orbit * translation_matrix * rotation_matrix_2_self);
-	_body.node.render(view_projection, world * rotation_matrix_tilt * rotation_matrix_orbit * translation_matrix * rotation_matrix_2_self * rotation_matrix_1_self * scale_matrix);
+	world = parent_transform * rotation_matrix_tilt * rotation_matrix_orbit * translation_matrix * rotation_matrix_2_self;
+	glm::mat4 planet_goes_brrr = world * rotation_matrix_1_self * scale_matrix;
+	_body.node.render(view_projection, planet_goes_brrr);
 
-	return parent_transform;
+	if (show_basis)
+	{
+		bonobo::renderBasis(0.6f, 2.0f, view_projection, parent_transform);
+		bonobo::renderBasis(0.3f, 3.0f, view_projection, planet_goes_brrr);
+	}
+	return world;
 }
 
 void CelestialBody::add_child(CelestialBody *child)

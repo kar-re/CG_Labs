@@ -14,6 +14,10 @@
 #include <clocale>
 #include <cstdlib>
 
+glm::vec3 lerp(glm::vec3 x, glm::vec3 y, float t)
+{
+	return x * (1.f - t) + y * t;
+}
 int main()
 {
 	std::setlocale(LC_ALL, "");
@@ -32,7 +36,7 @@ int main()
 	FPSCameraf camera(0.5f * glm::half_pi<float>(),
 										static_cast<float>(config::resolution_x) / static_cast<float>(config::resolution_y),
 										0.01f, 1000.0f);
-	camera.mWorld.SetTranslate(glm::vec3(0.0f, 4.0f, 20.0f));
+	camera.mWorld.SetTranslate(glm::vec3(0.0f, 4.0f, 5.0f));
 	camera.mWorld.LookAt(glm::vec3(0.0f));
 	camera.mMouseSensitivity = glm::vec2(0.003f);
 	camera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
@@ -222,10 +226,12 @@ int main()
 	sun.add_child(&venus);
 	sun.add_child(&mercury);
 	sun.add_child(&earth);
+
 	// earth.set_orbit({-2.5f, glm::radians(45.0f), glm::two_pi<float>() / 10.0f});
 	//
 	// Define the colour and depth used for clearing.
 	//
+	// Alternatively, multiply everything with inverse of a given planet
 	glClearDepthf(1.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -237,6 +243,12 @@ int main()
 	bool show_gui = true;
 	bool show_basis = false;
 	float time_scale = 1.0f;
+
+	int focus, counter = 0;
+	std::vector<glm::vec3> positions;
+	bool is_focused = false;
+
+	glm::mat4 focus_world_matrix = glm::mat4(1.0f);
 	// earth.set_scale(glm::vec3(1.0, 0.2, 0.2));
 	while (!glfwWindowShouldClose(window))
 	{
@@ -257,8 +269,6 @@ int main()
 		input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
 		input_handler.Advance();
 
-		// Lerping on previous positions. Choose a reference, sample positions in an vector. Lerp between, which gives smooth transition and smooth camera movement.
-		// Can be swapped as well, even if we have a stack.
 		camera.Update(delta_time_us, input_handler);
 
 		if (input_handler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
@@ -267,6 +277,19 @@ int main()
 			show_gui = !show_gui;
 		if (input_handler.GetKeycodeState(GLFW_KEY_F11) & JUST_RELEASED)
 			window_manager.ToggleFullscreenStatusForWindow(window);
+
+		// Lerping on previous positions. Choose a reference, sample positions in an vector. Lerp between, which gives smooth transition and smooth camera movement.
+
+		// Alternatively - global camera pose, i.e. independent view matrix.
+		// Can be swapped as well, even if we have a stack.
+		// Follow planets, randomize followed planet, switch isFocused
+		if (input_handler.GetKeycodeState(GLFW_KEY_M) & JUST_RELEASED)
+		{
+			focus = std::rand() % 10;
+			LogInfo("Focus: (%i), isFocused (%i)", focus, is_focused);
+			focus_world_matrix = glm::mat4(1.0);
+			is_focused = !is_focused;
+		}
 
 		// Retrieve the actual framebuffer size: for HiDPI monitors,
 		// you might end up with a framebuffer larger than what you
@@ -310,15 +333,38 @@ int main()
 		sun_ref.body = &sun;
 		sun_ref.parent_transform = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 0.0f));
 		celestial_bodies.push(sun_ref);
-
+		counter = 0;
 		while (!celestial_bodies.empty())
 		{
 			CelestialBodyRef &body_ref = celestial_bodies.top();
 			celestial_bodies.pop();
-			glm::mat4 transform = body_ref.body->render(animation_delta_time_us, camera.GetWorldToClipMatrix(), body_ref.parent_transform, show_basis);
+			glm::mat4 transform = body_ref.body->render(animation_delta_time_us, camera.GetWorldToClipMatrix() * focus_world_matrix, body_ref.parent_transform, show_basis);
+			if (is_focused && (counter == focus))
+			{
 
+				glm::vec3 position = glm::vec3(transform[3]);
+				// Get position of focused planet, the fourth column in transformation matrix, set camera translate according to that.
+				// camera.mWorld.SetTranslate(position + glm::vec3(0.0f, 0.2f, 0.5f));
+
+				// Alternative method: get translation matrix for negative position, multiply camera world to clip matrix with that!
+				focus_world_matrix = glm::translate(glm::mat4(1.0), -position);
+
+				// Legacy
+				// focus_world_matrix = glm::inverse(transform);
+				// glm::vec3 look_at_position = transform[3];
+				// glm::vec3 current_camera_position = glm::vec3(camera.GetWorldToClipMatrix()[3]);
+				// glm::vec3 lerped_position = lerp(current_camera_position, look_at_position, 0.5f);
+				// camera.mWorld.setLoo(position);
+				// camera.mWorld.LookAt(position);
+
+				// LogInfo("Cam: (%f) (%f) (%f), lerp: (%f) (%f) (%f) ", current_camera_position.x, current_camera_position.y, current_camera_position.z, lerped_position.x, lerped_position.y, lerped_position.z);
+				// LogInfo("Pos: (%f) (%f) (%f)", position.x, position.y, position.z);
+				// camera.mWorld.SetTranslate(lerped_position);
+				// camera.mWorld.LookAt(look_at_position);
+			}
+
+			counter++;
 			std::vector<CelestialBody *> const &children = body_ref.body->get_children();
-
 			for (const auto &child : children)
 			{
 				CelestialBodyRef child_ref;

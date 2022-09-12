@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "MSVC-x64-Debug-",
+      "displayName": "Debug MSVC",
+      "description": "MSVC, build and install",
+      "generator": "Visual Studio 15 2017",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      }
+    },
+    {
+      "name": "MSVC-x64-Release",
+      "description": "MSVC, build and install Release edition",
+      "displayName": "x64-Release",
+      "inherits": "x64-Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "Ninja-Debug",
+      "displayName": "ninjaaaa",
+      "description": "asdf",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      }
+    }
+  ]
+}

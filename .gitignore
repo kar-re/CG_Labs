@@ -17,6 +17,7 @@ imgui.ini
 log.txt
 
 # Visual Studio Files
+.vscode/
 .vs/
 *.opensdf
 *.sdf

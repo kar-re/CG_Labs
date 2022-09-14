@@ -383,6 +383,8 @@ int main()
 			ImGui::SliderFloat("Time scale", &time_scale, 1e-1f, 10.0f);
 			ImGui::Separator();
 			ImGui::Checkbox("Show basis", &show_basis);
+			if (is_focused)
+				ImGui::BulletText("Focused on (%i)", focus);
 		}
 		ImGui::End();
 

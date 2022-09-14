@@ -55,7 +55,7 @@ void edaf80::Assignment2::run() {
     return;
 
   // Set up the camera
-  mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 0.0f, 0.5f));
+  mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 1.0f, 9.0f));
   mCamera.mMouseSensitivity = glm::vec2(0.003f);
   mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
 
@@ -178,6 +178,8 @@ void edaf80::Assignment2::run() {
   float basis_thickness_scale = 1.0f;
   float basis_length_scale = 1.0f;
 
+  int p0 = 0, p1 = 1, p2 = 2, p3 = 3;
+
   changeCullMode(cull_mode);
 
   while (!glfwWindowShouldClose(window)) {
@@ -219,16 +221,30 @@ void edaf80::Assignment2::run() {
     bonobo::changePolygonMode(polygon_mode);
 
     if (interpolate) {
+
+      if (glm::distance(circle_rings.get_transform().GetTranslation(),
+                        control_point_locations[p1]) < 0.01f) {
+        p0 = p1;
+        p1 = p2;
+        p2 = p3;
+        p3++;
+        if (p3 == control_point_locations.size())
+          p3 = 0;
+      }
       //! \todo Interpolate the movement of a shape between various
       //!        control points.
+      float interpolate_time =
+          elapsed_time_s / 3.0f - static_cast<uint>(elapsed_time_s / 3.0f);
+      // printf("time: %f", interpolate_time);
       if (use_linear) {
-        //! \todo Compute the interpolated position
-        //!       using the linear interpolation.
+        circle_rings.get_transform().SetTranslate(interpolation::evalLERP(
+            control_point_locations[p0], control_point_locations[p1],
+            interpolate_time));
       } else {
-        //! \todo Compute the interpolated position
-        //!       using the Catmull-Rom interpolation;
-        //!       use the `catmull_rom_tension`
-        //!       variable as your tension argument.
+        circle_rings.get_transform().SetTranslate(interpolation::evalCatmullRom(
+            control_point_locations[p0], control_point_locations[p1],
+            control_point_locations[p2], control_point_locations[p3],
+            catmull_rom_tension, interpolate_time));
       }
     }
 

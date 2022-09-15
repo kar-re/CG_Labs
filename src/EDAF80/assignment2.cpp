@@ -1,4 +1,5 @@
 #include "assignment2.hpp"
+#include "core/Log.h"
 #include "interpolation.hpp"
 #include "parametric_shapes.hpp"
 
@@ -177,7 +178,7 @@ void edaf80::Assignment2::run() {
   bool show_basis = false;
   float basis_thickness_scale = 1.0f;
   float basis_length_scale = 1.0f;
-
+  float interpolation_duration = 3.0f;
   int p0 = 0, p1 = 1, p2 = 2, p3 = 3;
 
   changeCullMode(cull_mode);
@@ -195,7 +196,8 @@ void edaf80::Assignment2::run() {
     glfwPollEvents();
     inputHandler.Advance();
     mCamera.Update(deltaTimeUs, inputHandler);
-    elapsed_time_s += std::chrono::duration<float>(deltaTimeUs).count();
+    elapsed_time_s += std::chrono::duration<float>(deltaTimeUs).count() /
+                      interpolation_duration;
 
     if (inputHandler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
       show_logs = !show_logs;
@@ -221,30 +223,33 @@ void edaf80::Assignment2::run() {
     bonobo::changePolygonMode(polygon_mode);
 
     if (interpolate) {
+      // time_to_interpolate - total tid att interpolera mellan positioner
+      // interpolate_time = total tid / antal noder
+      //
 
-      if (glm::distance(circle_rings.get_transform().GetTranslation(),
-                        control_point_locations[p1]) < 0.01f) {
+      if (elapsed_time_s > 1.0f) {
         p0 = p1;
         p1 = p2;
         p2 = p3;
         p3++;
         if (p3 == control_point_locations.size())
           p3 = 0;
+        // LogInfo("p: (%u), (%u), (%u), (%u)", p0, p1, p2, p3);
+        elapsed_time_s = 0.0f;
       }
       //! \todo Interpolate the movement of a shape between various
       //!        control points.
-      float interpolate_time =
-          elapsed_time_s / 3.0f - static_cast<uint>(elapsed_time_s / 3.0f);
+
       // printf("time: %f", interpolate_time);
       if (use_linear) {
         circle_rings.get_transform().SetTranslate(interpolation::evalLERP(
             control_point_locations[p0], control_point_locations[p1],
-            interpolate_time));
+            elapsed_time_s));
       } else {
         circle_rings.get_transform().SetTranslate(interpolation::evalCatmullRom(
             control_point_locations[p0], control_point_locations[p1],
             control_point_locations[p2], control_point_locations[p3],
-            catmull_rom_tension, interpolate_time));
+            catmull_rom_tension, elapsed_time_s));
       }
     }
 
@@ -275,6 +280,8 @@ void edaf80::Assignment2::run() {
       ImGui::Checkbox("Use linear interpolation", &use_linear);
       ImGui::SliderFloat("Catmull-Rom tension", &catmull_rom_tension, 0.0f,
                          1.0f);
+      ImGui::SliderFloat("Interpolation duration", &interpolation_duration,
+                         0.0f, 10.0f);
       ImGui::Separator();
       ImGui::Checkbox("Show basis", &show_basis);
       ImGui::SliderFloat("Basis thickness scale", &basis_thickness_scale, 0.0f,

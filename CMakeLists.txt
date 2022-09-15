@@ -21,6 +21,7 @@ project (
 
 # Set build type
 set (CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo")
+set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (NOT CMAKE_BUILD_TYPE)
 	set (
 		CMAKE_BUILD_TYPE

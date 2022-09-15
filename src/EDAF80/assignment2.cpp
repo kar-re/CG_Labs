@@ -8,6 +8,7 @@
 #include "core/FPSCamera.h"
 #include "core/ShaderProgramManager.hpp"
 #include "core/node.hpp"
+#include <glm/fwd.hpp>
 #include <imgui.h>
 
 #include <glm/glm.hpp>
@@ -49,13 +50,14 @@ void edaf80::Assignment2::run() {
   // Load the sphere geometry
   // auto const shape = parametric_shapes::createCircleRing(2.0f, 0.75f, 40u,
   // 4u);
-  auto const shape = parametric_shapes::createSphere(0.15f, 10u, 10u);
-  auto const shape1 = parametric_shapes::createTorus(0.3f, 0.06f, 10u, 10u);
+  // auto const shape = parametric_shapes::createSphere(0.15f, 10u, 10u);
+  auto const shape = parametric_shapes::createTorus(0.5f, 0.25f, 64u, 32u);
   // auto const shape = parametric_shapes::createQuad(0.25f, 0.15f);
   if (shape.vao == 0u)
     return;
 
   // Set up the camera
+  // mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 0.0f, 0.5f));
   mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 1.0f, 9.0f));
   mCamera.mMouseSensitivity = glm::vec2(0.003f);
   mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
@@ -159,6 +161,21 @@ void edaf80::Assignment2::run() {
       glm::vec3(3.0f, 0.0f, 3.0f),    glm::vec3(-2.0f, -1.0f, 3.0f),
       glm::vec3(-3.0f, -3.0f, -3.0f), glm::vec3(-2.0f, -1.2f, -2.0f),
       glm::vec3(-1.0f, -1.8f, -1.0f)};
+
+  // Initialize tangents
+  std::array<glm::vec3, 9> control_point_locations_tangent;
+  for (std::size_t i = 0; i < control_point_locations.size(); ++i) {
+    if (i + 1 == control_point_locations.size()) {
+      control_point_locations_tangent[i] =
+          glm::vec3(control_point_locations_tangent[0] -
+                    control_point_locations_tangent[i]);
+
+    } else {
+      control_point_locations_tangent[i] =
+          glm::vec3(control_point_locations_tangent[i + 1] -
+                    control_point_locations_tangent[i]);
+    }
+  }
   std::array<Node, control_point_locations.size()> control_points;
   for (std::size_t i = 0; i < control_point_locations.size(); ++i) {
     auto &control_point = control_points[i];
@@ -245,12 +262,22 @@ void edaf80::Assignment2::run() {
         circle_rings.get_transform().SetTranslate(interpolation::evalLERP(
             control_point_locations[p0], control_point_locations[p1],
             elapsed_time_s));
+        // circle_rings.get_transform().LookAt(
+        //     interpolation::evalLERP(control_point_locations[p1],
+        //                             control_point_locations[p2],
+        //                             elapsed_time_s),
+        //     glm::vec3(0.0f, 1.0f, 0.0f));
+
       } else {
+        // circle_rings.get_transform().LookAt(control_point_locations[p2],
+        //                                     glm::vec3(0.0f, 1.0f, 0.0f));
         circle_rings.get_transform().SetTranslate(interpolation::evalCatmullRom(
             control_point_locations[p0], control_point_locations[p1],
             control_point_locations[p2], control_point_locations[p3],
             catmull_rom_tension, elapsed_time_s));
       }
+      // circle_rings.get_transform().LookTowards(
+      //     control_point_locations_tangent[p1]);
     }
 
     circle_rings.render(mCamera.GetWorldToClipMatrix());

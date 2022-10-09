@@ -262,6 +262,14 @@ void edaf80::Assignment2::run() {
         circle_rings.get_transform().SetTranslate(interpolation::evalLERP(
             control_point_locations[p0], control_point_locations[p1],
             elapsed_time_s));
+        // circle_rings.get_transform().
+        // circle_rings.get_transform().LookAt(
+        //     interpolation::evalLERP(control_point_locations[p0],
+        //                             control_point_locations[p1],
+        //                             elapsed_time_s + 0.01f),
+        //     circle_rings.get_transform().GetUp());
+
+        // circle_rings.get_transform().SetRotate()
         // circle_rings.get_transform().LookAt(
         //     interpolation::evalLERP(control_point_locations[p1],
         //                             control_point_locations[p2],
@@ -275,9 +283,15 @@ void edaf80::Assignment2::run() {
             control_point_locations[p0], control_point_locations[p1],
             control_point_locations[p2], control_point_locations[p3],
             catmull_rom_tension, elapsed_time_s));
+        circle_rings.get_transform().LookAt(
+            interpolation::evalCatmullRom(
+                control_point_locations[p0], control_point_locations[p1],
+                control_point_locations[p2], control_point_locations[p3],
+                catmull_rom_tension, elapsed_time_s + 0.1f),
+            glm::vec3(0.0f, 1.0f, 0.0f));
+        circle_rings.get_transform().Rotate(
+            90, circle_rings.get_transform().GetLeft());
       }
-      // circle_rings.get_transform().LookTowards(
-      //     control_point_locations_tangent[p1]);
     }
 
     circle_rings.render(mCamera.GetWorldToClipMatrix());

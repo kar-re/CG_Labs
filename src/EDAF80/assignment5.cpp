@@ -1,4 +1,5 @@
 #include "assignment5.hpp"
+#include "core/InputHandler.h"
 #include "parametric_shapes.hpp"
 
 #include "config.hpp"
@@ -8,7 +9,9 @@
 #include "core/helpers.hpp"
 #include "core/node.hpp"
 
+#include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/trigonometric.hpp>
 #include <imgui.h>
 #include <tinyfiledialogs.h>
 
@@ -182,8 +185,11 @@ void edaf80::Assignment5::run() {
   bool show_gui = true;
   bool shader_reload_failed = false;
   bool show_basis = false;
+  bool game_started = false;
   float basis_thickness_scale = 1.0f;
   float basis_length_scale = 1.0f;
+  float current_acceleration = 0.0f;
+  float current_angle = 0.0f;
 
   while (!glfwWindowShouldClose(window)) {
     auto const nowTime = std::chrono::high_resolution_clock::now();
@@ -191,6 +197,9 @@ void edaf80::Assignment5::run() {
         std::chrono::duration_cast<std::chrono::microseconds>(nowTime -
                                                               lastTime);
     lastTime = nowTime;
+    auto const deltaTime_s = std::chrono::duration<float>(deltaTimeUs);
+
+    // logInf
 
     auto &io = ImGui::GetIO();
     inputHandler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
@@ -199,6 +208,27 @@ void edaf80::Assignment5::run() {
     inputHandler.Advance();
     mCamera.Update(deltaTimeUs, inputHandler, true, false);
     camera_position = mCamera.mWorld.GetTranslation();
+
+    if (game_started) {
+      bee.get_transform().Translate(glm::vec3(glm::sin(current_angle) * 0.05f,
+                                              current_acceleration,
+                                              glm::cos(current_angle) * 0.05f));
+
+      if (inputHandler.GetKeycodeState(GLFW_KEY_LEFT) & JUST_RELEASED) {
+        current_angle += 0.2f;
+      }
+      if (inputHandler.GetKeycodeState(GLFW_KEY_RIGHT) & JUST_RELEASED) {
+        current_angle -= 0.2f;
+      }
+      if (inputHandler.GetKeycodeState(GLFW_KEY_SPACE) & JUST_RELEASED)
+        current_acceleration += 0.1f;
+
+      current_acceleration -= 0.0982f * deltaTime_s.count();
+    } else {
+      if (inputHandler.GetKeycodeState(GLFW_KEY_SPACE) & JUST_RELEASED) {
+        game_started = true;
+      }
+    }
 
     if (inputHandler.GetKeycodeState(GLFW_KEY_R) & JUST_PRESSED) {
       shader_reload_failed = !program_manager.ReloadAllPrograms();
@@ -210,6 +240,7 @@ void edaf80::Assignment5::run() {
                            "Once fixed, just reload the shaders again.",
                            "error");
     }
+
     if (inputHandler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
       show_logs = !show_logs;
     if (inputHandler.GetKeycodeState(GLFW_KEY_F2) & JUST_RELEASED)
@@ -252,12 +283,16 @@ void edaf80::Assignment5::run() {
     //
     bool const opened =
         ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_None);
+    if (!game_started) {
+      ImGui::Text("Press space to start game");
+    }
     if (opened) {
       ImGui::Checkbox("Show basis", &show_basis);
       ImGui::SliderFloat("Basis thickness scale", &basis_thickness_scale, 0.0f,
                          100.0f);
       ImGui::SliderFloat("Basis length scale", &basis_length_scale, 0.0f,
                          100.0f);
+      ImGui::Text("Delta time: %f", deltaTime_s.count());
     }
     ImGui::End();
 

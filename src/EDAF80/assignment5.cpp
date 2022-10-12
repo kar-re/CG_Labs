@@ -10,13 +10,33 @@
 #include "core/node.hpp"
 
 #include <GLFW/glfw3.h>
+#include <glm/fwd.hpp>
+#include <glm/gtc/random.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
 #include <tinyfiledialogs.h>
 
+#include "interpolation.hpp"
+
 #include <clocale>
 #include <stdexcept>
+#include <vector>
+
+class Enemy : public Node {
+  float speed = 1.0f;
+  glm::vec3 direction = glm::vec3(0.0f, 0.0f, 1.0f);
+
+public:
+  void set_direction(glm::vec3 dir) { this->direction = dir; }
+  void set_speed(float s) { this->speed = s; }
+  void update() {
+    this->get_transform().Translate(direction * speed * 0.01f);
+    // LogInfo("Updated translation");
+  }
+
+private:
+};
 
 edaf80::Assignment5::Assignment5(WindowManager &windowManager)
     : mCamera(0.5f * glm::half_pi<float>(),
@@ -127,15 +147,16 @@ void edaf80::Assignment5::run() {
     glUniform3fv(glGetUniformLocation(program, "camera_position"), 1,
                  glm::value_ptr(camera_position));
     glUniform1f(glGetUniformLocation(program, "t"), elapsed_time_s);
+    glUniform1i(glGetUniformLocation(program, "use_normal_mapping"), 1);
   };
 
   auto my_cube_map_id = bonobo::loadTextureCubeMap(
-      config::resources_path("cubemaps/NissiBeach2/posx.jpg"),
-      config::resources_path("cubemaps/NissiBeach2/negx.jpg"),
-      config::resources_path("cubemaps/NissiBeach2/posy.jpg"),
-      config::resources_path("cubemaps/NissiBeach2/negy.jpg"),
-      config::resources_path("cubemaps/NissiBeach2/posz.jpg"),
-      config::resources_path("cubemaps/NissiBeach2/negz.jpg"));
+      config::resources_path("cubemaps/Teide/posx.jpg"),
+      config::resources_path("cubemaps/Teide/negx.jpg"),
+      config::resources_path("cubemaps/Teide/posy.jpg"),
+      config::resources_path("cubemaps/Teide/negy.jpg"),
+      config::resources_path("cubemaps/Teide/posz.jpg"),
+      config::resources_path("cubemaps/Teide/negz.jpg"));
 
   auto normal_map_id =
       bonobo::loadTexture2D(config::resources_path("textures/waves.png"));
@@ -149,7 +170,6 @@ void edaf80::Assignment5::run() {
   //
   // Todo: Load your geometry
   //
-
   auto skybox_shape = parametric_shapes::createSphere(500.0f, 100u, 100u);
   if (skybox_shape.vao == 0u) {
     LogError("Failed to retrieve the mesh for the skybox");
@@ -159,21 +179,52 @@ void edaf80::Assignment5::run() {
   skybox.set_geometry(skybox_shape);
   skybox.set_program(&skybox_shader, set_uniforms);
   skybox.add_texture("my_cube_map", my_cube_map_id, GL_TEXTURE_CUBE_MAP);
-
-  auto bee_shape = parametric_shapes::createSphere(1.0f, 32u, 64u);
+  auto bee_shape =
+      bonobo::loadObjects(config::resources_path("models/bee.obj"))[0];
+  // auto bee_shape = parametric_shapes::createSphere(0.2f, 32u, 64u);
   if (bee_shape.vao == 0u) {
     LogError("Failed to retrieve the mesh for the bee");
     return;
   }
+
+  bonobo::material_data demo_material;
+  demo_material.ambient = glm::vec3(0.74f, 0.88f, 1) / 6.0f;
+  demo_material.diffuse = glm::vec3(0.7f, 0.2f, 0.4f);
+  demo_material.specular = glm::vec3(1.0f, 1.0f, 1.0f);
+  demo_material.shininess = 10.0f;
   Node bee;
   bee.set_geometry(bee_shape);
   bee.set_program(&phong_shader, set_uniforms);
   bee.add_texture("diffuse_texture", diffuse_texture, GL_TEXTURE_2D);
+  bee.set_material_constants(demo_material);
   bee.add_texture("normal_texture", normal_texture, GL_TEXTURE_2D);
   bee.add_texture("roughness_texture", roughness_texture, GL_TEXTURE_2D);
   bee.get_transform().SetTranslate(glm::vec3(0.0f, 0.0f, 0.0f));
+
+  Node sea;
+  sea.set_geometry(parametric_shapes::createQuad(1000.0f, 1000.0f, 100u, 100u));
+  sea.set_program(&water_shader, set_uniforms);
+  sea.add_texture("cube_map", my_cube_map_id, GL_TEXTURE_CUBE_MAP);
+  sea.add_texture("normal_map", normal_map_id, GL_TEXTURE_2D);
+  sea.get_transform().SetTranslate(glm::vec3(-500.0f, -20.0f, -500.0f));
   // skybox.add_texture("my_cube_map", my_cube_map_id, GL_TEXTURE_CUBE_MAP);
   // skybox.get_transform().SetTranslate(glm::vec3(-50.0f, -50.0f, 50.0f))
+  auto enemy_shape =
+      bonobo::loadObjects(config::resources_path("models/enemy.obj"))[0];
+  std::vector<Enemy> enemies;
+  for (int i = 0; i < 50; i++) {
+    Enemy enemy;
+    enemy.set_geometry(enemy_shape);
+    enemy.set_program(&texcoord_shader, set_uniforms);
+    glm::vec3 random_position =
+        glm::ballRand<float>(10) * glm::vec3(10.0f, 2.0f, 10.0f);
+    // LogInfo("Random position: (%f, %f, %f)", random_position.x,
+    //         random_position.y, random_position.z);
+    enemy.set_direction(glm::normalize(random_position));
+    enemy.get_transform().SetTranslate(random_position);
+
+    enemies.push_back(enemy);
+  }
 
   glClearDepthf(1.0f);
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -181,15 +232,18 @@ void edaf80::Assignment5::run() {
 
   auto lastTime = std::chrono::high_resolution_clock::now();
 
-  bool show_logs = true;
+  bool show_logs = false;
   bool show_gui = true;
   bool shader_reload_failed = false;
   bool show_basis = false;
   bool game_started = false;
+  bool is_game_over = false;
   float basis_thickness_scale = 1.0f;
   float basis_length_scale = 1.0f;
   float current_acceleration = 0.0f;
   float current_angle = 0.0f;
+  int points = 0;
+  glm::vec3 previous_pos = bee.get_transform().GetTranslation();
 
   while (!glfwWindowShouldClose(window)) {
     auto const nowTime = std::chrono::high_resolution_clock::now();
@@ -198,6 +252,7 @@ void edaf80::Assignment5::run() {
                                                               lastTime);
     lastTime = nowTime;
     auto const deltaTime_s = std::chrono::duration<float>(deltaTimeUs);
+    elapsed_time_s += std::chrono::duration<float>(deltaTimeUs).count();
 
     // logInf
 
@@ -206,28 +261,48 @@ void edaf80::Assignment5::run() {
 
     glfwPollEvents();
     inputHandler.Advance();
-    mCamera.Update(deltaTimeUs, inputHandler, true, false);
-    camera_position = mCamera.mWorld.GetTranslation();
+    mCamera.Update(deltaTimeUs, inputHandler, true, true);
+    if (game_started && !is_game_over) {
+      const glm::vec3 lookat_position = interpolation::evalLERP(
+          previous_pos, bee.get_transform().GetTranslation(),
+          6.0f * deltaTime_s.count());
+      mCamera.mWorld.LookAt(lookat_position);
+      previous_pos = lookat_position;
 
-    if (game_started) {
-      bee.get_transform().Translate(glm::vec3(glm::sin(current_angle) * 0.05f,
-                                              current_acceleration,
-                                              glm::cos(current_angle) * 0.05f));
+      mCamera.mWorld.SetTranslate(interpolation::evalLERP(
+          mCamera.mWorld.GetTranslation(), bee.get_transform().GetTranslation(),
+          deltaTime_s.count() * 2.0f));
+      camera_position = mCamera.mWorld.GetTranslation();
 
-      if (inputHandler.GetKeycodeState(GLFW_KEY_LEFT) & JUST_RELEASED) {
-        current_angle += 0.2f;
+      bee.get_transform().Translate(
+          glm::vec3(glm::sin(current_angle) * -0.05f, current_acceleration,
+                    glm::cos(current_angle) * -0.05f));
+      bee.get_transform().SetRotateY(current_angle);
+      if (inputHandler.GetKeycodeState(GLFW_KEY_LEFT) & PRESSED) {
+        current_angle += 0.005f;
+        // bee.get_transform().RotateY(0.005f);
+        // bee.get_transform().RotateZ(0.005f);
       }
-      if (inputHandler.GetKeycodeState(GLFW_KEY_RIGHT) & JUST_RELEASED) {
-        current_angle -= 0.2f;
+      if (inputHandler.GetKeycodeState(GLFW_KEY_RIGHT) & PRESSED) {
+        current_angle -= 0.005f;
+        // bee.get_transform().LookAt(glm::vec3(glm::sin(current_angle) *
+        // -0.05f,
+        //                                      current_acceleration,
+        //                                      glm::cos(current_angle) *
+        //                                      -0.05f) *
+        //                            2.0f);
+        // bee.get_transform().RotateZ(-0.005f);
       }
-      if (inputHandler.GetKeycodeState(GLFW_KEY_SPACE) & JUST_RELEASED)
-        current_acceleration += 0.1f;
+      if (inputHandler.GetKeycodeState(GLFW_KEY_SPACE) & PRESSED) {
+        current_acceleration += (0.0005f);
 
-      current_acceleration -= 0.0982f * deltaTime_s.count();
+      } else {
+
+        current_acceleration -= 0.0982f / 6 * deltaTime_s.count();
+      }
     } else {
-      if (inputHandler.GetKeycodeState(GLFW_KEY_SPACE) & JUST_RELEASED) {
+      if (inputHandler.GetKeycodeState(GLFW_KEY_SPACE) & JUST_RELEASED)
         game_started = true;
-      }
     }
 
     if (inputHandler.GetKeycodeState(GLFW_KEY_R) & JUST_PRESSED) {
@@ -271,8 +346,33 @@ void edaf80::Assignment5::run() {
       //
       // Todo: Render all your geometry here.
       //
+
+      skybox.get_transform().SetTranslate(
+          glm::vec3(mCamera.mWorld.GetTranslation().x, -30.0f,
+                    mCamera.mWorld.GetTranslation().z));
       skybox.render(mCamera.GetWorldToClipMatrix());
       bee.render(mCamera.GetWorldToClipMatrix());
+      sea.render(mCamera.GetWorldToClipMatrix());
+      for (int i = 0; i < enemies.size(); i++) {
+        if (glm::linearRand(0.0f, 1.0f) < 0.01f) {
+          enemies[i].set_direction(glm::ballRand(1.0f));
+          // LogInfo("Updated direction %i", i);
+        }
+        enemies[i].update();
+        enemies[i].render(mCamera.GetWorldToClipMatrix());
+        if (glm::distance(enemies[i].get_transform().GetTranslation(),
+                          bee.get_transform().GetTranslation()) < 0.4f) {
+
+          points++;
+          enemies.erase(enemies.begin() + i);
+          // enemies.erase(enemy);
+        }
+        // LogInfo("Render enemy (%f, %f, %f)",
+        //         enemy.get_transform().GetTranslation().x,
+        //         enemy.get_transform().GetTranslation().y,
+        //         enemy.get_transform().GetTranslation().z);
+      }
+      // previous_pos = bee.get_transform().GetTranslation();
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -281,20 +381,38 @@ void edaf80::Assignment5::run() {
     // Todo: If you want a custom ImGUI window, you can set it up
     //       here
     //
-    bool const opened =
-        ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_None);
+    ImGui::Begin("Game Info");
+    if (bee.get_transform().GetTranslation().y < -20.0f) {
+      is_game_over = true;
+      ImGui::Text("Game over, you got %i points", points);
+    } else {
+      ImGui::Text("Points: %i", points);
+    }
     if (!game_started) {
+      ImGui::Text("Welcome to killer wasp!");
+      ImGui::Text("Control the wasp by using the arrow keys and space");
       ImGui::Text("Press space to start game");
     }
-    if (opened) {
-      ImGui::Checkbox("Show basis", &show_basis);
-      ImGui::SliderFloat("Basis thickness scale", &basis_thickness_scale, 0.0f,
-                         100.0f);
-      ImGui::SliderFloat("Basis length scale", &basis_length_scale, 0.0f,
-                         100.0f);
-      ImGui::Text("Delta time: %f", deltaTime_s.count());
+    if (points == 50) {
+      is_game_over = true;
+      ImGui::Text("Congratulations!");
+      ImGui::Text("You won!");
+      ImGui::Text("You got %i points", points);
     }
     ImGui::End();
+
+    // bool const opened =
+    //     ImGui::Begin("Scene Controls", nullptr, ImGuiWindowFlags_None);
+    // if (opened) {
+    //   ImGui::Checkbox("Show basis", &show_basis);
+    //   ImGui::SliderFloat("Basis thickness scale", &basis_thickness_scale,
+    //   0.0f,
+    //                      100.0f);
+    //   ImGui::SliderFloat("Basis length scale", &basis_length_scale, 0.0f,
+    //                      100.0f);
+    //   ImGui::Text("Delta time: %f", deltaTime_s.count());
+    // }
+    // ImGui::End();
 
     if (show_basis)
       bonobo::renderBasis(basis_thickness_scale, basis_length_scale,
@@ -318,4 +436,8 @@ int main() {
   } catch (std::runtime_error const &e) {
     LogError(e.what());
   }
+}
+
+glm::vec3 edaf80::Assignment5::random_position(float scale) {
+  return glm::ballRand<float>(10) * glm::vec3(scale, 1.0f, scale);
 }

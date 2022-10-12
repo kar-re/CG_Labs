@@ -161,8 +161,8 @@ void edaf80::Assignment5::run() {
   auto normal_map_id =
       bonobo::loadTexture2D(config::resources_path("textures/waves.png"));
 
-  auto const diffuse_texture = bonobo::loadTexture2D(
-      config::resources_path("textures/leather_red_02_coll1_2k.jpg"));
+  auto const diffuse_texture =
+      bonobo::loadTexture2D(config::resources_path("textures/wasp.jpg"));
   auto const normal_texture = bonobo::loadTexture2D(
       config::resources_path("textures/leather_red_02_nor_2k.jpg"));
   auto const roughness_texture = bonobo::loadTexture2D(
